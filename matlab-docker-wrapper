@@ -1,0 +1,42 @@
+#!/bin/sh
+LNUCREDENTIALS_PATH=~/.matlab/MathWorks/MATLAB/LNUCredentials
+DATA_PATH=~/.matlab/$MATLAB_VER_UPPER-docker
+
+[ -t 0 ] && isatty=1 || isatty=0
+
+# if this isn't a tty and there aren't any saved credentials, the user won't see the LNU credentials
+# prompt so we need to tell them to deal with the problem manually
+if [ "$isatty" -eq "0" ] && [ ! -e $LNUCREDENTIALS_PATH/LNUCreds.info ]; then
+  error="Running in a non-interactive shell, and no LNU credentials were found.\n\nRun the wrapper script ($0) in an interactive shell first to provide credentials which will be saved."
+
+  echo -e "error: $error"
+  if which notify-send &> /dev/null; then
+    notify-send -u critical "matlab-docker-wrapper" "<b>Error:</b> $error"
+  fi
+
+  exit 1
+fi
+
+# if the LNU credentials or data folders don't exist, create them (and all their parents)
+mkdir -p $LNUCREDENTIALS_PATH $DATA_PATH
+
+# start the container: based mostly on "Run MATLAB desktop using X11" from https://hub.docker.com/r/mathworks/matlab
+cmd="docker run -it --rm \
+  --name matlab-docker-wrapper \
+  `# set up for X11 forwarding` \
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+  `# persistent storage` \
+  -v $(realpath $LNUCREDENTIALS_PATH):/home/matlab/.matlab/MathWorks/MATLAB/LNUCredentials \
+  -v $(realpath $DATA_PATH):/home/matlab/.matlab/$MATLAB_VER_UPPER \
+  `# required due to dumb stuff: see LINK GOES HERE!!!` \
+  --ulimit nofile=65536 \
+  --shm-size=512M \
+  mathworks/matlab:$MATLAB_VER_LOWER"
+
+if [ "$isatty" -eq "1" ]; then
+  $cmd
+else
+  # we need script here because. for some reason. MATLAB launches as a command-line app without -it,
+  # and obviously we don't have a tty in an application launcher or similar so -it breaks.
+  script -c "$cmd" /dev/null &> /dev/null
+fi

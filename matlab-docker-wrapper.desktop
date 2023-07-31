@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Categories=Development;Education;Science
+
+Name=MATLAB $MATLAB_VER_UPPER (Docker)
+Path=/usr/bin
+Exec=matlab-docker-wrapper
+
+Icon=/usr/share/matlab-docker-wrapper/icon.png
+
+Terminal=false
